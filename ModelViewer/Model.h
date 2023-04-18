@@ -11,6 +11,8 @@
 #include <assimp/postprocess.h>
 
 #include "Mesh.h"
+#include "AssimpGlmHelpers.h"
+#include "Animdata.h"
 
 #include <string>
 #include <fstream>
@@ -32,12 +34,26 @@ public:
     bool gammaCorrection;
 
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool moveable, bool gamma = false);
+    Model(string const& path, bool moveable, bool animated, bool gamma = false);
 
     // draws the model, and thus all its meshes
     void Draw(Shader& shader);
 
-    bool IsMoveable();
+    auto& GetBoneInfoMap() { return m_BoneInfoMap; }
+    int& GetBoneCount() { return m_BoneCounter; }
+
+    // models properties
+
+    // scale
+    void SetScaleVec(float scale);
+    glm::vec3 GetScaleVec() { return this->scale; }
+
+    // position
+    void SetPosVec(float position[3]);
+    glm::vec3 GetPosVec() { return this->position; }
+
+    bool IsMoveable() { return moveable; }
+    bool IsAnimated() { return animated; }
 
 private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
@@ -52,7 +68,21 @@ private:
     // the required info is returned as a Texture struct.
     vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, string typeName);
 
-    bool moveable = false;
+    void SetVertexBoneDataToDefault(Vertex& vertex);
+
+    void SetVertexBoneData(Vertex& vertex, int boneID, float weight);
+
+    void ExtractBoneWeightForVertices(std::vector<Vertex>& vertices, aiMesh* mesh, const aiScene* scene);
+
+    // model properties 
+    bool moveable = false, animated = false;
+    glm::vec3 scale, position;
+
+    // -----------------------
+
+
+    std::map<string, BoneInfo> m_BoneInfoMap;
+    int m_BoneCounter = 0;
 };
 
 #endif

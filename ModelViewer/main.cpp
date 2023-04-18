@@ -14,6 +14,7 @@
 
 #include "Camera.h"
 #include "Model.h"
+#include "Animator.h"
 
 #include <iostream>
 
@@ -33,9 +34,9 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
-void SetnDrawModel(Shader& shader, Model& modelObj, bool moveable, glm::vec3 scale, glm::vec3 pos);
+void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec3 scale, glm::vec3 pos);
 void MenuDraw();
-pair<Model, modelInfo> LoadModel(string pathToModel,bool moveable, float pos[3], float scale);
+pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, bool animated, float pos[3], float scale);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
@@ -61,7 +62,7 @@ const glm::vec3 zeroVec = glm::vec3(0.0f, 0.0f, 0.0f);
 const glm::vec3 singleVec = glm::vec3(1.0f, 1.0f, 1.0f);
 
 // tools, objects
-vector<pair<Model, modelInfo>> models;
+vector<pair<Model*, pair<Animation*, Animator*>>> models; // first value = Model, second = Animator;
 progState state = MENU;
 bool KeysProcessed[1024], Keys[1024];
 
@@ -92,6 +93,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     ImGui::StyleColorsDark();
 
@@ -119,19 +121,20 @@ int main()
 
     while (!glfwWindowShouldClose(window)) 
     {
-        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+        glClearColor(.0f, .0f, .0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // input
         processInput(window);
 
-        // drawing
-        for (int i = 0; i < models.size(); ++i) {
-            SetnDrawModel(ourShader, models[i].first, models[i].first.IsMoveable(), models[i].second.scale, models[i].second.pos); // first - model object; second - modelInfo struct  
+        for (int i = 0; i < models.size(); i++)
+        {
+            if (models[i].first->IsAnimated()) models[i].second.second->UpdateAnimation(deltaTime);
+
+            SetnDrawModel(ourShader, *models[i].first, *models[i].second.second, models[i].first->GetScaleVec(), models[i].first->GetPosVec());
         }
 
         if (state == MENU) {
@@ -215,7 +218,7 @@ void processInput(GLFWwindow* window)
     }
 }
 
-void SetnDrawModel(Shader& shader, Model& modelObj, bool moveable, glm::vec3 scale, glm::vec3 pos)
+void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec3 scale, glm::vec3 pos)
 {
     shader.use();
 
@@ -225,9 +228,18 @@ void SetnDrawModel(Shader& shader, Model& modelObj, bool moveable, glm::vec3 sca
     shader.setMat4("projection", projection);
     shader.setMat4("view", view);
 
+    if (modelObj.IsAnimated()) {
+        shader.setBool("animated", true);
+
+        auto transforms = animator.GetFinalBoneMatrices();
+        for (int i = 0; i < transforms.size(); ++i)
+            shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+    }
+    else shader.setBool("animated", false);
+
     // render the loaded model
     glm::mat4 model = glm::mat4(1.0f);
-    if (moveable) {
+    if (modelObj.IsMoveable()) {
         model = glm::translate(model, pos + moveVec); // translate it down so it's at the center of the scene
         model = glm::rotate(model, glm::radians(rotAngle), glm::vec3(0.0f, 1.0f, 0.0f));
     } else {
@@ -245,7 +257,7 @@ void MenuDraw()
 
     static bool firstOpen = true;
 
-    static bool checkMove = false, loadWindow = false, pressDelete = false;
+    static bool checkMove = false, animated = false, loadWindow = false, pressDelete = false;
     static float position[3], scale = 1.0f;
 
     // Start the Dear ImGui frame
@@ -257,11 +269,11 @@ void MenuDraw()
     static ImGui::FileBrowser fileDialog;
 
     fileDialog.SetTitle("Browse Model");
-    fileDialog.SetTypeFilters({ ".obj" });
+    fileDialog.SetTypeFilters({ ".obj", ".fbx", ".dae" });
     // ----------------------------------------------
 
     if (firstOpen) {
-        ImGui::SetNextWindowSize(ImVec2(400, 130));
+        ImGui::SetNextWindowSize(ImVec2(400, 150));
         firstOpen = false;
     }
     ImGui::Begin("ModelViewer Menu");
@@ -279,6 +291,7 @@ void MenuDraw()
     else {
         // Model info tools
         ImGui::Checkbox("Moveable model", &checkMove);
+        ImGui::Checkbox("Animated model", &animated);
         ImGui::InputFloat3("Position", position);
         ImGui::InputFloat("Scale", &scale, 0.001f, 0.1f, "\t %.3f (min: 0.001)");
 
@@ -286,10 +299,10 @@ void MenuDraw()
             
         if (!pathToModel.empty()) {
             // loading model in modelVector
-            models.push_back( LoadModel(pathToModel, checkMove, position, scale) ); // return pair <Model, modelInfo>
+            models.push_back( LoadModel(pathToModel, checkMove, animated, position, scale) ); // return pair <Model, modelInfo>
 
             // clear values for next model
-            loadWindow = false, checkMove = false, state = ACTIVE, pathToModel.clear();
+            loadWindow = false, checkMove = false, animated = false, state = ACTIVE, pathToModel.clear();
             scale = 1.0f;
             for (int i = 0; i < 3; ++i) {
                 position[i] = 0.0f;
@@ -312,15 +325,20 @@ void MenuDraw()
     }
 }
 
-pair<Model, modelInfo> LoadModel(string pathToModel, bool moveable, float pos[3], float scale)
+pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, bool animated, float pos[3], float scale)
 {
-    Model model(convertPath(pathToModel), moveable);
+    Model* model = new Model(convertPath(pathToModel), moveable, animated);
+    Animation* anim;
+    Animator* animator;
+    if (animated) {
+        anim = new Animation(convertPath(pathToModel), model);
+        animator = new Animator(anim);
+    }
 
-    modelInfo mInfo;
-    mInfo.pos.x = pos[0], mInfo.pos.y = pos[1], mInfo.pos.z = pos[2];
-    mInfo.scale.x = scale, mInfo.scale.y = scale, mInfo.scale.z = scale;
+    model->SetPosVec(pos);
+    model->SetScaleVec(scale);
 
-    return make_pair(model, mInfo);
+    return make_pair(model, make_pair(anim, animator));
 }
 
 string convertPath(const std::string& str)
