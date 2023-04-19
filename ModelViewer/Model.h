@@ -34,7 +34,7 @@ public:
     bool gammaCorrection;
 
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool moveable, bool animated, bool gamma = false);
+    Model(string const& path, bool moveable, bool gamma = false);
 
     // draws the model, and thus all its meshes
     void Draw(Shader& shader);
@@ -52,7 +52,14 @@ public:
     void SetPosVec(float position[3]);
     glm::vec3 GetPosVec() { return this->position; }
 
+    // world size
+    void CalculateSize();
+    float GetSize() { return sizeZ; }
+
+    // statement
     bool IsMoveable() { return moveable; }
+    
+    void SetAnimated(bool animated) { this->animated = animated; }
     bool IsAnimated() { return animated; }
 
 private:
@@ -77,6 +84,7 @@ private:
     // model properties 
     bool moveable = false, animated = false;
     glm::vec3 scale, position;
+    float sizeZ = 3.0f;
 
     // -----------------------
 

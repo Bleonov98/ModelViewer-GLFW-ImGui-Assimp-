@@ -23,20 +23,20 @@ enum progState {
     ACTIVE
 };
 
-struct modelInfo {
-    glm::vec3 pos;
-    glm::vec3 scale;
-};
-
-string convertPath(const std::string& str);
-
+// input
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
+
+// drawing
+void ImGuiRender(ImGuiIO& io);
 void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec3 scale, glm::vec3 pos);
+void Drawing(GLFWwindow* window, Shader& ourShader);
 void MenuDraw();
-pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, bool animated, float pos[3], float scale);
+void HelpMenu();
+
+pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, float pos[3], float scale);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
@@ -46,7 +46,7 @@ const unsigned int SCR_HEIGHT = 720;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
+bool firstMouse = true, mouseDis = false;
 
 // timing
 float deltaTime = 0.0f;
@@ -62,9 +62,13 @@ const glm::vec3 zeroVec = glm::vec3(0.0f, 0.0f, 0.0f);
 const glm::vec3 singleVec = glm::vec3(1.0f, 1.0f, 1.0f);
 
 // tools, objects
+string convertPath(const std::string& str);
+
 vector<pair<Model*, pair<Animation*, Animator*>>> models; // first value = Model, second = Animator;
 progState state = MENU;
+
 bool KeysProcessed[1024], Keys[1024];
+bool helpMenu = true;
 
 int main()
 {
@@ -124,38 +128,17 @@ int main()
         glClearColor(.0f, .0f, .0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Timing
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
         processInput(window);
 
-        for (int i = 0; i < models.size(); i++)
-        {
-            if (models[i].first->IsAnimated()) models[i].second.second->UpdateAnimation(deltaTime);
-
-            SetnDrawModel(ourShader, *models[i].first, *models[i].second.second, models[i].first->GetScaleVec(), models[i].first->GetPosVec());
-        }
-
-        if (state == MENU) {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
-            MenuDraw();
-
-            ImGui::Render();
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-            {
-                GLFWwindow* backup_current_context = glfwGetCurrentContext();
-                ImGui::UpdatePlatformWindows();
-                ImGui::RenderPlatformWindowsDefault();
-                glfwMakeContextCurrent(backup_current_context);
-            }
-        }
-        else glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        Drawing(window, ourShader);
+  
+        // imgui:Render + glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        ImGuiRender(io);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -174,7 +157,7 @@ int main()
 
 void processInput(GLFWwindow* window)
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_F4) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -203,18 +186,34 @@ void processInput(GLFWwindow* window)
     else if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) moveVec += speedVecZ * deltaTime;
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) moveVec = zeroVec;
 
-    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
-        Keys[GLFW_KEY_M] = true;
-    else if (glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE)
+    // MENU Keys
+
+    // ESC key
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        Keys[GLFW_KEY_ESCAPE] = true;
+    else if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_RELEASE)
     {
-        Keys[GLFW_KEY_M] = false;
-        KeysProcessed[GLFW_KEY_M] = false;
+        Keys[GLFW_KEY_ESCAPE] = false;
+        KeysProcessed[GLFW_KEY_ESCAPE] = false;
+    }
+    // H key
+    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
+        Keys[GLFW_KEY_H] = true;
+    else if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE)
+    {
+        Keys[GLFW_KEY_H] = false;
+        KeysProcessed[GLFW_KEY_H] = false;
     }
 
-    if (Keys[GLFW_KEY_M] && !KeysProcessed[GLFW_KEY_M]) {
+    // ----                                                  ------
+    if (Keys[GLFW_KEY_ESCAPE] && !KeysProcessed[GLFW_KEY_ESCAPE]) {
         if (state == MENU) state = ACTIVE;
-        else if (state == ACTIVE) state = MENU; // bool?
-        KeysProcessed[GLFW_KEY_M] = true;
+        else if (state == ACTIVE) state = MENU;
+        KeysProcessed[GLFW_KEY_ESCAPE] = true;
+    }
+    if (Keys[GLFW_KEY_H] && !KeysProcessed[GLFW_KEY_H]) {
+        helpMenu = !helpMenu;
+        KeysProcessed[GLFW_KEY_H] = true;
     }
 }
 
@@ -223,7 +222,7 @@ void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec
     shader.use();
 
     // view/projection transformations
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 8000.0f);
     glm::mat4 view = camera.GetViewMatrix();
     shader.setMat4("projection", projection);
     shader.setMat4("view", view);
@@ -250,6 +249,26 @@ void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec
     modelObj.Draw(shader);
 }
 
+void Drawing(GLFWwindow* window, Shader& ourShader)
+{
+    // Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // Objects drawing
+    for (int i = 0; i < models.size(); i++)
+    {
+        if (models[i].first->IsAnimated()) models[i].second.second->UpdateAnimation(deltaTime);
+
+        SetnDrawModel(ourShader, *models[i].first, *models[i].second.second, models[i].first->GetScaleVec(), models[i].first->GetPosVec());
+    }
+
+    // Menu/Help drawing
+    if (helpMenu) HelpMenu();
+    if (state == MENU) MenuDraw();
+}
+
 void MenuDraw()
 {
     // variables
@@ -257,13 +276,8 @@ void MenuDraw()
 
     static bool firstOpen = true;
 
-    static bool checkMove = false, animated = false, loadWindow = false, pressDelete = false;
+    static bool checkMove = false, loadWindow = false, pressDelete = false;
     static float position[3], scale = 1.0f;
-
-    // Start the Dear ImGui frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
 
     // set browser properties
     static ImGui::FileBrowser fileDialog;
@@ -273,7 +287,7 @@ void MenuDraw()
     // ----------------------------------------------
 
     if (firstOpen) {
-        ImGui::SetNextWindowSize(ImVec2(400, 150));
+        ImGui::SetNextWindowSize(ImVec2(380, 130));
         firstOpen = false;
     }
     ImGui::Begin("ModelViewer Menu");
@@ -291,7 +305,6 @@ void MenuDraw()
     else {
         // Model info tools
         ImGui::Checkbox("Moveable model", &checkMove);
-        ImGui::Checkbox("Animated model", &animated);
         ImGui::InputFloat3("Position", position);
         ImGui::InputFloat("Scale", &scale, 0.001f, 0.1f, "\t %.3f (min: 0.001)");
 
@@ -299,14 +312,16 @@ void MenuDraw()
             
         if (!pathToModel.empty()) {
             // loading model in modelVector
-            models.push_back( LoadModel(pathToModel, checkMove, animated, position, scale) ); // return pair <Model, modelInfo>
+            models.push_back( LoadModel(pathToModel, checkMove, position, scale) ); // return pair <Model, modelInfo>
 
             // clear values for next model
-            loadWindow = false, checkMove = false, animated = false, state = ACTIVE, pathToModel.clear();
+            loadWindow = false, checkMove = false, state = ACTIVE, pathToModel.clear();
             scale = 1.0f;
             for (int i = 0; i < 3; ++i) {
                 position[i] = 0.0f;
             }
+
+            
         }
 
         // Back button
@@ -325,20 +340,55 @@ void MenuDraw()
     }
 }
 
-pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, bool animated, float pos[3], float scale)
+void HelpMenu()
 {
-    Model* model = new Model(convertPath(pathToModel), moveable, animated);
-    Animation* anim;
-    Animator* animator;
-    if (animated) {
-        anim = new Animation(convertPath(pathToModel), model);
-        animator = new Animator(anim);
+    static bool firstOpen = true;
+    static string helpStr;
+
+    if (firstOpen) {
+        std::ifstream helpFile;
+        helpFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        helpFile.open("../readme.md");
+
+        std::stringstream helpFileStream;
+        helpFileStream << helpFile.rdbuf();
+        helpFile.close();
+
+        helpStr = helpFileStream.str();
+
+        ImGui::SetNextWindowSize(ImVec2(320, 130));
+        firstOpen = false;
     }
 
+    // ------------- MENU ----------------
+    ImGui::SetNextWindowPos(ImVec2(200.0f, 200.0f), ImGuiCond_Once);
+    ImGui::Begin("Help");
+
+    ImGui::Text(helpStr.c_str());
+
+    ImGui::End();
+}
+
+pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, float pos[3], float scale)
+{
+    Model* model = new Model(convertPath(pathToModel), moveable);
     model->SetPosVec(pos);
     model->SetScaleVec(scale);
 
-    return make_pair(model, make_pair(anim, animator));
+    // if animated 
+    try
+    {
+        Animation* anim = new Animation(convertPath(pathToModel), model);
+        Animator* animator = new Animator(anim);
+        model->SetAnimated(true);
+
+        return make_pair(model, make_pair(anim, animator));
+    }
+    catch (const bool ex) {
+        model->SetAnimated(false);
+
+        return make_pair(model, make_pair(nullptr, nullptr));
+    }
 }
 
 string convertPath(const std::string& str)
@@ -350,6 +400,21 @@ string convertPath(const std::string& str)
         }
     }
     return result;
+}
+
+void ImGuiRender(ImGuiIO& io)
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        GLFWwindow* backup_current_context = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(backup_current_context);
+    }
+
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)

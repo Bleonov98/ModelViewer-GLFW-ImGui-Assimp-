@@ -70,6 +70,17 @@ void Camera::ProcessMouseScroll(float yoffset)
         Zoom = 45.0f;
 }
 
+void Camera::MoveToObject(glm::vec3 objectPosition, float size)
+{
+    this->Position = objectPosition;
+    this->Position.z += size;
+    Yaw = YAW;
+    Pitch = PITCH;
+
+    glm::lookAt(Position, Position + Front, Up);
+    updateCameraVectors();
+}
+
 void Camera::updateCameraVectors()
 {
     // calculate the new Front vector
