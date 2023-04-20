@@ -42,8 +42,8 @@ public:
     auto& GetBoneInfoMap() { return m_BoneInfoMap; }
     int& GetBoneCount() { return m_BoneCounter; }
 
-    // models properties
-
+    // models properties -------------------------------------------
+    // 
     // scale
     void SetScaleVec(float scale);
     glm::vec3 GetScaleVec() { return this->scale; }
@@ -52,15 +52,18 @@ public:
     void SetPosVec(float position[3]);
     glm::vec3 GetPosVec() { return this->position; }
 
-    // world size
+    // size
     void CalculateSize();
-    float GetSize() { return sizeZ; }
+    glm::vec3 GetSize() { return size; }
+    glm::vec3 GetCenter() { return center; }
 
     // statement
     bool IsMoveable() { return moveable; }
     
     void SetAnimated(bool animated) { this->animated = animated; }
     bool IsAnimated() { return animated; }
+
+    // -------------------------------------------------------------
 
 private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
@@ -83,8 +86,7 @@ private:
 
     // model properties 
     bool moveable = false, animated = false;
-    glm::vec3 scale, position;
-    float sizeZ = 3.0f;
+    glm::vec3 scale, position, size, center;
 
     // -----------------------
 

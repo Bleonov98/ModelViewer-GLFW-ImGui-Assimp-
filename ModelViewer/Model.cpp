@@ -1,8 +1,11 @@
 #include "Model.h"
+#include <algorithm>
 
 Model::Model(string const& path, bool moveable, bool gamma) : gammaCorrection(gamma), moveable(moveable)
 {
     loadModel(path);
+
+    CalculateSize();
 }
 
 void Model::Draw(Shader& shader)
@@ -25,6 +28,30 @@ void Model::SetPosVec(float position[3])
 
 void Model::CalculateSize()
 {
+    for (int i = 0; i < meshes.size(); ++i)
+    {
+        auto MaxSizePointX = std::max(meshes[i].vertices.front().Position.x, meshes[i].vertices.back().Position.x);
+        auto MaxSizePointY = std::max(meshes[i].vertices.front().Position.y, meshes[i].vertices.back().Position.y);
+        auto MaxSizePointZ = std::max(meshes[i].vertices.front().Position.z, meshes[i].vertices.back().Position.z);
+
+        auto MinSizePointX = std::min(meshes[i].vertices.front().Position.x, meshes[i].vertices.back().Position.x);
+        auto MinSizePointY = std::min(meshes[i].vertices.front().Position.y, meshes[i].vertices.back().Position.y);
+        auto MinSizePointZ = std::min(meshes[i].vertices.front().Position.z, meshes[i].vertices.back().Position.z);
+
+        glm::vec3 MaxSizePoint = glm::vec3(MaxSizePointX, MaxSizePointY, MaxSizePointZ);
+        glm::vec3 MinSizePoint = glm::vec3(MinSizePointX, MinSizePointY, MinSizePointZ);
+
+        glm::vec3 dSize = MaxSizePoint - MinSizePoint;
+        glm::vec3 dCenter = (MaxSizePoint + MinSizePoint) * 0.5f;
+
+        if (size.x < dSize.x) size.x = dSize.x;
+        if (size.y < dSize.y) size.y = dSize.y;
+        if (size.z < dSize.z) size.z = dSize.z;
+
+        if (center.x < dCenter.x) center.x = dCenter.x;
+        if (center.y < dCenter.y) center.y = dCenter.y;
+        if (center.z < dCenter.z) center.z = dCenter.z;
+    }
 }
 
 void Model::loadModel(string const& path)

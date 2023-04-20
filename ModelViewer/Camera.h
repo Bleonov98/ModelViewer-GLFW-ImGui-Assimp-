@@ -4,7 +4,7 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
+#include "glm/gtx/euler_angles.hpp"
 #include <vector>
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
@@ -35,6 +35,7 @@ public:
     glm::vec3 Up;
     glm::vec3 Right;
     glm::vec3 WorldUp;
+    glm::vec3 camTarget;
     // euler Angles
     float Yaw;
     float Pitch;
@@ -62,10 +63,15 @@ public:
     void ProcessMouseScroll(float yoffset);
 
     // move to object which has been called
-    void MoveToObject(glm::vec3 objectPosition, float size);
+    void MoveToObject(glm::vec3 objectPosition, glm::vec3 size, glm::vec3 center, glm::vec3 scale);
+    
+    void SwitchCamera() { disabled = !disabled; }
+    bool IsDisabled() { return disabled; }
 
 private:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors();
+
+    bool disabled = true;
 };
 #endif

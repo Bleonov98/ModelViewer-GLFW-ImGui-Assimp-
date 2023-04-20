@@ -46,7 +46,7 @@ const unsigned int SCR_HEIGHT = 720;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true, mouseDis = false;
+bool firstMouse = true;
 
 // timing
 float deltaTime = 0.0f;
@@ -125,7 +125,7 @@ int main()
 
     while (!glfwWindowShouldClose(window)) 
     {
-        glClearColor(.0f, .0f, .0f, 1.0f);
+        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Timing
@@ -209,11 +209,29 @@ void processInput(GLFWwindow* window)
     if (Keys[GLFW_KEY_ESCAPE] && !KeysProcessed[GLFW_KEY_ESCAPE]) {
         if (state == MENU) state = ACTIVE;
         else if (state == ACTIVE) state = MENU;
+        
+        camera.SwitchCamera();
+
         KeysProcessed[GLFW_KEY_ESCAPE] = true;
     }
     if (Keys[GLFW_KEY_H] && !KeysProcessed[GLFW_KEY_H]) {
         helpMenu = !helpMenu;
+
         KeysProcessed[GLFW_KEY_H] = true;
+    }
+}
+
+void ImGuiRender(ImGuiIO& io)
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        GLFWwindow* backup_current_context = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(backup_current_context);
     }
 }
 
@@ -266,7 +284,13 @@ void Drawing(GLFWwindow* window, Shader& ourShader)
 
     // Menu/Help drawing
     if (helpMenu) HelpMenu();
-    if (state == MENU) MenuDraw();
+
+    if (state == MENU) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+        MenuDraw();
+    }
+    else glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void MenuDraw()
@@ -347,15 +371,37 @@ void HelpMenu()
 
     if (firstOpen) {
         std::ifstream helpFile;
-        helpFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        helpFile.open("../readme.md");
-
         std::stringstream helpFileStream;
-        helpFileStream << helpFile.rdbuf();
-        helpFile.close();
 
-        helpStr = helpFileStream.str();
+        try
+        {
+            helpFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+            helpFile.open("../readme.md");
+            
+            helpFileStream << helpFile.rdbuf();
+            helpFile.close();
 
+            helpStr = helpFileStream.str();
+        }
+        catch (const ifstream::failure fail)
+        {
+            helpFile.clear();
+            try
+            {
+                helpFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+                helpFile.open("readme.md");
+
+                helpFileStream << helpFile.rdbuf();
+                helpFile.close();
+
+                helpStr = helpFileStream.str();
+            }
+            catch (const ifstream::failure fail)
+            {
+                helpStr = "Help file not found";
+            }
+        }
+       
         ImGui::SetNextWindowSize(ImVec2(320, 130));
         firstOpen = false;
     }
@@ -374,6 +420,9 @@ pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool mov
     Model* model = new Model(convertPath(pathToModel), moveable);
     model->SetPosVec(pos);
     model->SetScaleVec(scale);
+    
+    camera.MoveToObject(model->GetPosVec(), model->GetSize(), model->GetCenter(), model->GetScaleVec());
+    camera.SwitchCamera();
 
     // if animated 
     try
@@ -402,21 +451,6 @@ string convertPath(const std::string& str)
     return result;
 }
 
-void ImGuiRender(ImGuiIO& io)
-{
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        GLFWwindow* backup_current_context = glfwGetCurrentContext();
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-        glfwMakeContextCurrent(backup_current_context);
-    }
-
-}
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -440,7 +474,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     lastX = xpos;
     lastY = ypos;
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    if (!camera.IsDisabled()) camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)

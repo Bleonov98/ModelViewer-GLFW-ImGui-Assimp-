@@ -70,15 +70,12 @@ void Camera::ProcessMouseScroll(float yoffset)
         Zoom = 45.0f;
 }
 
-void Camera::MoveToObject(glm::vec3 objectPosition, float size)
+void Camera::MoveToObject(glm::vec3 objectPosition, glm::vec3 size, glm::vec3 center, glm::vec3 scale)
 {
-    this->Position = objectPosition;
-    this->Position.z += size;
-    Yaw = YAW;
-    Pitch = PITCH;
-
-    glm::lookAt(Position, Position + Front, Up);
-    updateCameraVectors();
+    float distance = glm::max(glm::max(size.x, size.y), size.z);
+    Position = center + glm::vec3(0.0f, distance, size.z);
+    Position *= scale;
+    Position += objectPosition;
 }
 
 void Camera::updateCameraVectors()
