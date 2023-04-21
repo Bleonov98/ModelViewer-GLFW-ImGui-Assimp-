@@ -188,7 +188,7 @@ void processInput(GLFWwindow* window)
     else if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) moveVec += speedVecZ * deltaTime;
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) moveVec = zeroVec;
 
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(11.0f);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(33.0f);
     else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE) camera.SetSpeed(5.5f);
 
     // MENU Keys
