@@ -17,6 +17,7 @@
 #include "Animator.h"
 
 #include <iostream>
+#include <format>
 
 enum progState {
     MENU,
@@ -35,6 +36,7 @@ void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec
 void Drawing(GLFWwindow* window, Shader& ourShader);
 void MenuDraw();
 void HelpMenu();
+void DrawCoordinates();
 
 pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, float pos[3], float scale);
 
@@ -186,6 +188,9 @@ void processInput(GLFWwindow* window)
     else if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) moveVec += speedVecZ * deltaTime;
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) moveVec = zeroVec;
 
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(11.0f);
+    else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE) camera.SetSpeed(5.5f);
+
     // MENU Keys
 
     // ESC key
@@ -240,7 +245,7 @@ void SetnDrawModel(Shader& shader, Model& modelObj, Animator& animator, glm::vec
     shader.use();
 
     // view/projection transformations
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 8000.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 8000.0f);
     glm::mat4 view = camera.GetViewMatrix();
     shader.setMat4("projection", projection);
     shader.setMat4("view", view);
@@ -290,7 +295,11 @@ void Drawing(GLFWwindow* window, Shader& ourShader)
 
         MenuDraw();
     }
-    else glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    else {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+
+    DrawCoordinates();
 }
 
 void MenuDraw()
@@ -415,6 +424,24 @@ void HelpMenu()
     ImGui::End();
 }
 
+void DrawCoordinates()
+{
+    static bool firstOpen = true;
+
+    if (firstOpen) {
+        ImGui::SetNextWindowSize(ImVec2(100, 90));
+        ImGui::SetNextWindowPos(ImVec2(200, 800));
+        firstOpen = false;
+    }
+    ImGui::Begin("Position");
+    
+    ImGui::Text(("X: " + std::to_string(camera.GetCameraPosition().x)).c_str());
+    ImGui::Text(("Y: " + std::to_string(camera.GetCameraPosition().y)).c_str());
+    ImGui::Text(("Z: " + std::to_string(camera.GetCameraPosition().z)).c_str());
+
+    ImGui::End();
+}
+
 pair<Model*, pair<Animation*, Animator*>> LoadModel(string pathToModel, bool moveable, float pos[3], float scale)
 {
     Model* model = new Model(convertPath(pathToModel), moveable);
@@ -474,7 +501,8 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     lastX = xpos;
     lastY = ypos;
 
-    if (!camera.IsDisabled()) camera.ProcessMouseMovement(xoffset, yoffset);
+    if (camera.IsDisabled()) return;
+    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)

@@ -29,21 +29,6 @@ const float ZOOM = 45.0f;
 class Camera
 {
 public:
-    // camera Attributes
-    glm::vec3 Position;
-    glm::vec3 Front;
-    glm::vec3 Up;
-    glm::vec3 Right;
-    glm::vec3 WorldUp;
-    glm::vec3 camTarget;
-    // euler Angles
-    float Yaw;
-    float Pitch;
-    // camera options
-    float MovementSpeed;
-    float MouseSensitivity;
-    float Zoom;
-
     // constructor with vectors
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH);
 
@@ -62,9 +47,14 @@ public:
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset);
 
-    // move to object which has been called
+    // move to object which has been opened
     void MoveToObject(glm::vec3 objectPosition, glm::vec3 size, glm::vec3 center, glm::vec3 scale);
     
+    // attributes
+    glm::vec3 GetCameraPosition() { return Position; }
+    void SetSpeed(float speed) { MovementSpeed = speed; }
+
+    // camera state
     void SwitchCamera() { disabled = !disabled; }
     bool IsDisabled() { return disabled; }
 
@@ -72,6 +62,20 @@ private:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors();
 
+    // camera Attributes
+    glm::vec3 Position;
+    glm::vec3 Front;
+    glm::vec3 Up;
+    glm::vec3 Right;
+    glm::vec3 WorldUp;
+    // euler Angles
+    float Yaw;
+    float Pitch;
+    // camera options
+    float MovementSpeed;
+    float MouseSensitivity;
+    float Zoom;
+    // camera state
     bool disabled = true;
 };
 #endif

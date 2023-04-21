@@ -28,6 +28,8 @@ void Model::SetPosVec(float position[3])
 
 void Model::CalculateSize()
 {
+    vector<glm::vec3> centers;
+
     for (int i = 0; i < meshes.size(); ++i)
     {
         auto MaxSizePointX = std::max(meshes[i].vertices.front().Position.x, meshes[i].vertices.back().Position.x);
@@ -42,16 +44,20 @@ void Model::CalculateSize()
         glm::vec3 MinSizePoint = glm::vec3(MinSizePointX, MinSizePointY, MinSizePointZ);
 
         glm::vec3 dSize = MaxSizePoint - MinSizePoint;
-        glm::vec3 dCenter = (MaxSizePoint + MinSizePoint) * 0.5f;
+        centers.push_back((MaxSizePoint + MinSizePoint) * 0.5f);
 
         if (size.x < dSize.x) size.x = dSize.x;
         if (size.y < dSize.y) size.y = dSize.y;
         if (size.z < dSize.z) size.z = dSize.z;
-
-        if (center.x < dCenter.x) center.x = dCenter.x;
-        if (center.y < dCenter.y) center.y = dCenter.y;
-        if (center.z < dCenter.z) center.z = dCenter.z;
     }
+    
+    for (int i = 0; i < centers.size(); ++i)
+    {
+        center.x += centers[i].x;
+        center.y += centers[i].y;
+        center.z += centers[i].z;
+    }
+    center /= centers.size();
 }
 
 void Model::loadModel(string const& path)

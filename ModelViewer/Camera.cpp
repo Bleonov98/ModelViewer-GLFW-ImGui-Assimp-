@@ -76,6 +76,12 @@ void Camera::MoveToObject(glm::vec3 objectPosition, glm::vec3 size, glm::vec3 ce
     Position = center + glm::vec3(0.0f, distance, size.z);
     Position *= scale;
     Position += objectPosition;
+
+    glm::vec3 direction = center - Position;
+    Pitch = glm::degrees(std::atan2(direction.y, glm::sqrt(direction.x * direction.x + direction.z * direction.z)));
+    Yaw = glm::degrees(atan2(direction.x, direction.z));
+
+    updateCameraVectors();
 }
 
 void Camera::updateCameraVectors()
